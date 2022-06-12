@@ -29,6 +29,7 @@ func (r *ServiceRepoPostgres) Status(ctx context.Context) (domain.Status, error)
 		&status.Thread,
 		&status.Post,
 	)
+
 	return status, err
 }
 

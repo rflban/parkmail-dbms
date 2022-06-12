@@ -1,0 +1,12 @@
+[server]
+port = 5000
+
+[database]
+name = "postgres"
+username = "postgres"
+password = "postgres"
+host = "localhost"
+port = 5432
+max_conns = 100
+min_conns = 50
+max_idle_time_ns = 1800_000_000_000
