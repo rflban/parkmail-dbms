@@ -1,5 +1,6 @@
 package models
 
+//easyjson:json
 type Post struct {
 	Id       *int64  `json:"id,omitempty"`
 	Parent   *int64  `json:"parent,omitempty"`

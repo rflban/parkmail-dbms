@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels(in *jlexer.Lexer, out *PostFull) {
+func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgForumModels(in *jlexer.Lexer, out *PostFull) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -74,7 +74,7 @@ func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels(in *jlexer.Lexer
 				if out.Forum == nil {
 					out.Forum = new(Forum)
 				}
-				easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels1(in, out.Forum)
+				easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgForumModels1(in, out.Forum)
 			}
 		default:
 			in.SkipRecursive()
@@ -86,7 +86,7 @@ func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels(out *jwriter.Writer, in PostFull) {
+func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgForumModels(out *jwriter.Writer, in PostFull) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -124,7 +124,7 @@ func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels(out *jwriter.Wri
 		} else {
 			out.RawString(prefix)
 		}
-		easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels1(out, *in.Forum)
+		easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgForumModels1(out, *in.Forum)
 	}
 	out.RawByte('}')
 }
@@ -132,27 +132,27 @@ func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels(out *jwriter.Wri
 // MarshalJSON supports json.Marshaler interface
 func (v PostFull) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels(&w, v)
+	easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgForumModels(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v PostFull) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels(w, v)
+	easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgForumModels(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *PostFull) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels(&r, v)
+	easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgForumModels(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *PostFull) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels(l, v)
+	easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgForumModels(l, v)
 }
-func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels1(in *jlexer.Lexer, out *Forum) {
+func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgForumModels1(in *jlexer.Lexer, out *Forum) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -207,7 +207,7 @@ func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgModels1(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgModels1(out *jwriter.Writer, in Forum) {
+func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgForumModels1(out *jwriter.Writer, in Forum) {
 	out.RawByte('{')
 	first := true
 	_ = first

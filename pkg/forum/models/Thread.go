@@ -1,5 +1,6 @@
 package models
 
+//easyjson:json
 type Thread struct {
 	Id      *int32  `json:"id,omitempty"`
 	Title   string  `json:"title"`

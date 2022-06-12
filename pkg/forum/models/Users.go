@@ -1,3 +1,4 @@
 package models
 
-type Users = []User
+//easyjson:json
+type Users []User

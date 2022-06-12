@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgModels(in *jlexer.Lexer, out *Thread) {
+func easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgForumModels(in *jlexer.Lexer, out *Thread) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -102,7 +102,7 @@ func easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgModels(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgModels(out *jwriter.Writer, in Thread) {
+func easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgForumModels(out *jwriter.Writer, in Thread) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -158,23 +158,23 @@ func easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgModels(out *jwriter.Wri
 // MarshalJSON supports json.Marshaler interface
 func (v Thread) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgModels(&w, v)
+	easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgForumModels(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Thread) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgModels(w, v)
+	easyjsonA4b236b8EncodeGithubComRflbanParkmailDbmsPkgForumModels(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *Thread) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgModels(&r, v)
+	easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgForumModels(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Thread) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgModels(l, v)
+	easyjsonA4b236b8DecodeGithubComRflbanParkmailDbmsPkgForumModels(l, v)
 }

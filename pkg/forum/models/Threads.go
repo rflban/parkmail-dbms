@@ -1,3 +1,4 @@
 package models
 
-type Threads = []Thread
+//easyjson:json
+type Threads []Thread

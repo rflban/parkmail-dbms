@@ -1,5 +1,6 @@
 package models
 
+//easyjson:json
 type PostFull struct {
 	Post   *Post   `json:"post,omitempty"`
 	Author *User   `json:"author,omitempty"`

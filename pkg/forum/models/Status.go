@@ -1,5 +1,6 @@
 package models
 
+//easyjson:json
 type Status struct {
 	User   int32 `json:"user"`
 	Forum  int32 `json:"forum"`
