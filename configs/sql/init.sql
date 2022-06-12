@@ -17,12 +17,11 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
     threads     BIGINT              DEFAULT 0
 );
 
-create unlogged table if not exists forums_users (
+CREATE UNLOGGED TABLE IF NOT EXISTS forums_users (
     "user"      CITEXT COLLATE "C"  NOT NULL    REFERENCES users(nickname),
     forum       CITEXT              NOT NULL    REFERENCES forums(slug),
 
-    CONSTRAINT
-    unique_forum_user UNIQUE("user", forum)
+    CONSTRAINT unique_forum_user UNIQUE("user", forum)
 );
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (
@@ -54,6 +53,5 @@ CREATE UNLOGGED TABLE IF NOT EXISTS votes (
     thread      BIGINT              NOT NULL    REFERENCES threads(id),
     voice       INT                 NOT NULL,
 
-    CONSTRAINT
-    unique_vote UNIQUE(nickname, thread)
+    CONSTRAINT unique_vote UNIQUE(nickname, thread)
 );
