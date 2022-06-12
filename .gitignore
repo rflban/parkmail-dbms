@@ -3,6 +3,9 @@
 # Idea project files
 .idea/
 
+# VSCode project files
+.vscode/
+
 # Output
 tech-db-forum*
 report*.html
