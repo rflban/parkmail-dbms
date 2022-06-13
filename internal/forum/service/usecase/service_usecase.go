@@ -10,8 +10,8 @@ type ServiceUseCaseImpl struct {
 	serviceRepo service.ServiceRepository
 }
 
-func NewServiceUseCaseImpl(serviceRepo service.ServiceRepository) ServiceUseCaseImpl {
-	return ServiceUseCaseImpl{
+func New(serviceRepo service.ServiceRepository) *ServiceUseCaseImpl {
+	return &ServiceUseCaseImpl{
 		serviceRepo: serviceRepo,
 	}
 }

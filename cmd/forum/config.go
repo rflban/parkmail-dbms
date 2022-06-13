@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"strconv"
 	"time"
@@ -16,16 +18,7 @@ type Conf struct {
 	Server struct {
 		Port int
 	}
-	Database struct {
-		Host          string
-		Name          string
-		Username      string
-		Password      string
-		Port          int
-		MaxConns      int
-		MinConns      int
-		MaxIdleTimeNS time.Duration
-	}
+	Database DBConnConfig
 }
 
 func defaultConf() Conf {
@@ -34,7 +27,7 @@ func defaultConf() Conf {
 	conf.Server.Port = 8080
 
 	conf.Database.Host = "localhost"
-	conf.Database.Name = "localhost"
+	conf.Database.Name = "postgres"
 	conf.Database.Username = "postgres"
 	conf.Database.Password = "postgres"
 	conf.Database.Port = 5432
@@ -46,6 +39,8 @@ func defaultConf() Conf {
 }
 
 func getConfig(ctx context.Context) (*Conf, error) {
+	log, hasLogger := ctx.Value(constants.SetupLogKey).(*logrus.Entry)
+
 	conf := defaultConf()
 
 	viper.SetEnvPrefix("PMDBMS_FORUM")
@@ -57,6 +52,9 @@ func getConfig(ctx context.Context) (*Conf, error) {
 
 	profile, ok := viper.Get("PROFILE").(string)
 	if !ok {
+		if hasLogger {
+			log.Error("ENV PMDBMS_FORUM_PROFILE invalid value")
+		}
 		return nil, fmt.Errorf("ENV PMDBMS_FORUM_PROFILE invalid value")
 	}
 
@@ -65,10 +63,8 @@ func getConfig(ctx context.Context) (*Conf, error) {
 	viper.AddConfigPath("./configs/forum")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println(err.Error())
+		if hasLogger {
+			log.Warn(err.Error())
 		}
 	} else {
 		if serverConf, ok := viper.Get("server").(map[string]interface{}); ok {
