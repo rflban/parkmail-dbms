@@ -3,7 +3,7 @@ package delivery
 import (
 	"context"
 	"encoding/json"
-	"github.com/rflban/parkmail-dbms/internal/forum/user"
+	"github.com/rflban/parkmail-dbms/internal/forum/users"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
@@ -12,10 +12,10 @@ import (
 )
 
 type UserHandler struct {
-	userUseCase user.UserUseCase
+	userUseCase users.UserUseCase
 }
 
-func New(userUseCase user.UserUseCase) *UserHandler {
+func New(userUseCase users.UserUseCase) *UserHandler {
 	return &UserHandler{
 		userUseCase: userUseCase,
 	}

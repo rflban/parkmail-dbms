@@ -7,9 +7,9 @@ import (
 	ServiceDelivery "github.com/rflban/parkmail-dbms/internal/forum/service/delivery"
 	ServiceRepo "github.com/rflban/parkmail-dbms/internal/forum/service/repository"
 	ServiceUseCase "github.com/rflban/parkmail-dbms/internal/forum/service/usecase"
-	UserDelivery "github.com/rflban/parkmail-dbms/internal/forum/user/delivery"
-	UserRepo "github.com/rflban/parkmail-dbms/internal/forum/user/repository"
-	UserUseCase "github.com/rflban/parkmail-dbms/internal/forum/user/usecase"
+	UserDelivery "github.com/rflban/parkmail-dbms/internal/forum/users/delivery"
+	UserRepo "github.com/rflban/parkmail-dbms/internal/forum/users/repository"
+	UserUseCase "github.com/rflban/parkmail-dbms/internal/forum/users/usecase"
 )
 
 const prefix = "/api"

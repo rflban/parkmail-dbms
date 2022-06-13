@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/rflban/parkmail-dbms/internal/forum/user/domain"
+	"github.com/rflban/parkmail-dbms/internal/forum/users/domain"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/sirupsen/logrus"

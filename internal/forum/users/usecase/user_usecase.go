@@ -2,16 +2,16 @@ package usecase
 
 import (
 	"context"
-	"github.com/rflban/parkmail-dbms/internal/forum/user"
-	"github.com/rflban/parkmail-dbms/internal/forum/user/domain"
+	"github.com/rflban/parkmail-dbms/internal/forum/users"
+	"github.com/rflban/parkmail-dbms/internal/forum/users/domain"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 )
 
 type UserUseCaseImpl struct {
-	userRepo user.UserRepository
+	userRepo users.UserRepository
 }
 
-func New(userRepo user.UserRepository) *UserUseCaseImpl {
+func New(userRepo users.UserRepository) *UserUseCaseImpl {
 	return &UserUseCaseImpl{
 		userRepo: userRepo,
 	}

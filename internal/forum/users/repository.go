@@ -1,8 +1,8 @@
-package user
+package users
 
 import (
 	"context"
-	"github.com/rflban/parkmail-dbms/internal/forum/user/domain"
+	"github.com/rflban/parkmail-dbms/internal/forum/users/domain"
 )
 
 type UserRepository interface {
