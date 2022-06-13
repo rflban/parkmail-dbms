@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/rflban/parkmail-dbms/internal/forum/service"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
+	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -25,14 +26,25 @@ func (h *ServiceHandler) Status(rctx *fasthttp.RequestCtx) {
 
 	status, err := h.serviceUseCase.Status(ctx)
 	if err != nil {
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
 	body, err := json.Marshal(status)
 	if err != nil {
 		log.Error(err)
+
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
@@ -46,7 +58,12 @@ func (h *ServiceHandler) Clear(rctx *fasthttp.RequestCtx) {
 
 	err := h.serviceUseCase.Clear(ctx)
 	if err != nil {
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 

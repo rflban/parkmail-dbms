@@ -24,11 +24,17 @@ func New(userUseCase user.UserUseCase) *UserHandler {
 func (h *UserHandler) Create(rctx *fasthttp.RequestCtx) {
 	ctx := rctx.UserValue("ctx").(context.Context)
 	log := ctx.Value(constants.DeliveryLogKey).(*logrus.Entry)
+	rctx.SetContentType("application/json")
 
 	nickname, ok := rctx.UserValue("nickname").(string)
 	if !ok {
 		log.Errorf("Can't parse nickname: %v", nickname)
+		body, _ := json.Marshal(models.Error{
+			Message: "invalid nickname",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusBadRequest)
+		rctx.SetBody(body)
 		return
 	}
 
@@ -37,30 +43,50 @@ func (h *UserHandler) Create(rctx *fasthttp.RequestCtx) {
 	}
 	if err := json.Unmarshal(rctx.PostBody(), &toCreate); err != nil {
 		log.Error(err.Error())
+
+		body, _ := json.Marshal(models.Error{
+			Message: "invalid body",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusBadRequest)
+		rctx.SetBody(body)
 		return
 	}
 
 	created, err := h.userUseCase.Create(ctx, toCreate)
 	if err != nil {
 		if _, ok := err.(forumErrors.UniqueError); ok {
+			body, _ := json.Marshal(models.Error{
+				Message: "user already exists",
+			})
+
 			rctx.SetStatusCode(fasthttp.StatusConflict)
+			rctx.SetBody(body)
 			return
 		}
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
 
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
 	body, err := json.Marshal(created)
 	if err != nil {
 		log.Error(err.Error())
+
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
 	rctx.SetStatusCode(fasthttp.StatusCreated)
-	rctx.SetContentType("application/json")
 	rctx.SetBody(body)
 }
 
@@ -71,25 +97,46 @@ func (h *UserHandler) GetProfileByNickname(rctx *fasthttp.RequestCtx) {
 	nickname, ok := rctx.UserValue("nickname").(string)
 	if !ok {
 		log.Errorf("Can't parse nickname: %v", nickname)
+		body, _ := json.Marshal(models.Error{
+			Message: "invalid nickname",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusBadRequest)
+		rctx.SetBody(body)
 		return
 	}
 
 	obtained, err := h.userUseCase.GetByNickname(ctx, nickname)
 	if err != nil {
 		if _, ok := err.(forumErrors.EntityNotExistsError); ok {
+			body, _ := json.Marshal(models.Error{
+				Message: "user not found",
+			})
+
 			rctx.SetStatusCode(fasthttp.StatusNotFound)
+			rctx.SetBody(body)
 			return
 		}
 
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
 	body, err := json.Marshal(obtained)
 	if err != nil {
 		log.Error(err.Error())
+
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
@@ -105,32 +152,69 @@ func (h *UserHandler) EditProfileByNickname(rctx *fasthttp.RequestCtx) {
 	nickname, ok := rctx.UserValue("nickname").(string)
 	if !ok {
 		log.Errorf("Can't parse nickname: %v", nickname)
+		body, _ := json.Marshal(models.Error{
+			Message: "invalid nickname",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusBadRequest)
+		rctx.SetBody(body)
 		return
 	}
 
 	toEdit := models.UserUpdate{}
 	if err := json.Unmarshal(rctx.PostBody(), &toEdit); err != nil {
 		log.Error(err.Error())
+
+		body, _ := json.Marshal(models.Error{
+			Message: "invalid body",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusBadRequest)
+		rctx.SetBody(body)
 		return
 	}
 
 	edited, err := h.userUseCase.Patch(ctx, nickname, toEdit)
 	if err != nil {
 		if _, ok := err.(forumErrors.EntityNotExistsError); ok {
+			body, _ := json.Marshal(models.Error{
+				Message: "user not found",
+			})
+
 			rctx.SetStatusCode(fasthttp.StatusNotFound)
+			rctx.SetBody(body)
 			return
 		}
 
-		rctx.SetStatusCode(fasthttp.StatusBadRequest)
+		if _, ok := err.(forumErrors.UniqueError); ok {
+			body, _ := json.Marshal(models.Error{
+				Message: "conflict with another user's data",
+			})
+
+			rctx.SetStatusCode(fasthttp.StatusConflict)
+			rctx.SetBody(body)
+			return
+		}
+
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
+		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
 	body, err := json.Marshal(edited)
 	if err != nil {
 		log.Error(err.Error())
+
+		body, _ := json.Marshal(models.Error{
+			Message: "internal server error",
+		})
+
 		rctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		rctx.SetBody(body)
 		return
 	}
 
