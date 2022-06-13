@@ -9,8 +9,13 @@ import (
 )
 
 const (
-	queryGetStatus   = "SELECT (SELECT COUNT(*) FROM users), (SELECT COUNT(*) FROM forums), (SELECT COUNT(*) FROM threads), (SELECT COUNT(*) FROM posts)"
-	queryTruncateAll = "TRUNCATE TABLE users, forums, forums_users, threads, posts, votes CASCADE"
+	queryGetStatus = `SELECT
+		   (SELECT COUNT(*) FROM users),
+		   (SELECT COUNT(*) FROM forums),
+		   (SELECT COUNT(*) FROM threads),
+		   (SELECT COUNT(*) FROM posts)
+		;`
+	queryTruncateAll = `TRUNCATE TABLE users, forums, forums_users, threads, posts, votes CASCADE;`
 )
 
 type ServiceRepoPostgres struct {
@@ -24,7 +29,10 @@ func New(db *pgxpool.Pool) *ServiceRepoPostgres {
 }
 
 func (r *ServiceRepoPostgres) Status(ctx context.Context) (domain.Status, error) {
-	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry)
+	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"repo":   "Service",
+		"method": "Status",
+	})
 
 	status := domain.Status{}
 	err := r.db.QueryRow(ctx, queryGetStatus).Scan(
@@ -42,7 +50,10 @@ func (r *ServiceRepoPostgres) Status(ctx context.Context) (domain.Status, error)
 }
 
 func (r *ServiceRepoPostgres) Clear(ctx context.Context) error {
-	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry)
+	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"repo":   "Service",
+		"method": "Clear",
+	})
 
 	_, err := r.db.Exec(ctx, queryTruncateAll)
 
