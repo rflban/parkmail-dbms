@@ -7,6 +7,6 @@ type Post struct {
 	Message  string
 	IsEdited bool
 	Forum    string
-	Thread   int32
+	Thread   int64
 	Created  string
 }

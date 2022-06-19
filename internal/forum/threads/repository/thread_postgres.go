@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rflban/parkmail-dbms/internal/forum/threads/domain"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
