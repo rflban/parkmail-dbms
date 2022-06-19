@@ -9,4 +9,4 @@ host = "localhost"
 port = 5432
 max_conns = 100
 min_conns = 50
-max_idle_time_ns = 1800_000_000_000
+max_idle_time_ns = 1_800_000_000_000

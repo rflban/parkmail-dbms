@@ -3,6 +3,7 @@ package domain
 import "github.com/rflban/parkmail-dbms/pkg/forum/models"
 
 type User struct {
+	Id       int64
 	Nickname string
 	Fullname string
 	About    *string

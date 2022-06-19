@@ -18,10 +18,13 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums (
 );
 
 CREATE UNLOGGED TABLE IF NOT EXISTS forums_users (
-    "user"      CITEXT COLLATE "C"  NOT NULL    REFERENCES users(nickname),
+    nickname    CITEXT COLLATE "C"  NOT NULL    REFERENCES users(nickname),
+    fullname    TEXT                NOT NULL,
+    about       TEXT,
+    email       CITEXT              NOT NULL    UNIQUE,
     forum       CITEXT              NOT NULL    REFERENCES forums(slug),
 
-    CONSTRAINT unique_forum_user UNIQUE("user", forum)
+    CONSTRAINT unique_forum_user UNIQUE(nickname, forum)
 );
 
 CREATE UNLOGGED TABLE IF NOT EXISTS threads (

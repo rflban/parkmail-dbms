@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	queryCreate               = `INSERT INTO users (nickname, fullname, about, email) VALUES ($1, $2, $3, $4);`
+	queryCreate               = `INSERT INTO users (nickname, fullname, about, email) VALUES ($1, $2, $3, $4) RETURNING id;`
 	queryPatch                = `UPDATE users SET fullname = COALESCE(NULLIF(TRIM($2), ''), fullname), about = COALESCE(NULLIF(TRIM($3), ''), about), email = COALESCE(NULLIF(TRIM($4), ''), email) WHERE nickname = $1 RETURNING fullname, about, email;`
-	queryGetByEmail           = `SELECT nickname, fullname, about FROM users WHERE email = $1;`
-	queryGetByNickname        = `SELECT fullname, about, email FROM users WHERE nickname = $1;`
-	queryGetByEmailOrNickname = `SELECT nickname, fullname, about, email FROM users WHERE email = $1 OR nickname = $2;`
+	queryGetByEmail           = `SELECT id, nickname, fullname, about FROM users WHERE email = $1;`
+	queryGetByNickname        = `SELECT id, fullname, about, email FROM users WHERE nickname = $1;`
+	queryGetByEmailOrNickname = `SELECT id, nickname, fullname, about, email FROM users WHERE email = $1 OR nickname = $2;`
 )
 
 type UserRepositoryPostgres struct {
@@ -36,7 +36,7 @@ func (r *UserRepositoryPostgres) Create(ctx context.Context, user domain.User) (
 		"method": "Create",
 	})
 
-	_, err := r.db.Exec(ctx, queryCreate, user.Nickname, user.Fullname, user.About, user.Email)
+	err := r.db.QueryRow(ctx, queryCreate, user.Nickname, user.Fullname, user.About, user.Email).Scan(&user.Id)
 
 	if err != nil {
 		log.Error(err.Error())
@@ -94,6 +94,7 @@ func (r *UserRepositoryPostgres) GetByEmail(ctx context.Context, email string) (
 	user := domain.User{Email: email}
 
 	err := r.db.QueryRow(ctx, queryGetByEmail, email).Scan(
+		&user.Id,
 		&user.Nickname,
 		&user.Fullname,
 		&user.About,
@@ -119,6 +120,7 @@ func (r *UserRepositoryPostgres) GetByNickname(ctx context.Context, nickname str
 	user := domain.User{Nickname: nickname}
 
 	err := r.db.QueryRow(ctx, queryGetByNickname, nickname).Scan(
+		&user.Id,
 		&user.Fullname,
 		&user.About,
 		&user.Email,
@@ -148,11 +150,12 @@ func (r *UserRepositoryPostgres) GetByEmailOrNickname(ctx context.Context, email
 	}
 	defer rows.Close()
 
-	var users []domain.User
+	users := make([]domain.User, 0, rows.CommandTag().RowsAffected())
 	user := domain.User{}
 
 	for rows.Next() {
 		err = rows.Scan(
+			&user.Id,
 			&user.Nickname,
 			&user.Fullname,
 			&user.About,
