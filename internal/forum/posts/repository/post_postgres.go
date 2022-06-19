@@ -37,16 +37,21 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		"method": "Create",
 	})
 
-	var lastId int64
-	err := r.db.QueryRow(ctx, queryLastId).Scan(&lastId)
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
 	}
 
-	tx, err := r.db.Begin(ctx)
+	var lastId int64
+	err = r.db.QueryRow(ctx, queryLastId).Scan(&lastId)
 	if err != nil {
 		log.Error(err.Error())
+
+		if err := tx.Rollback(ctx); err != nil {
+			log.Error(err.Error())
+		}
+
 		return nil, err
 	}
 
@@ -91,7 +96,7 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 	}
 
 	for i := range posts {
-		posts[i].Id = int64(i) + lastId
+		posts[i].Id = int64(i) + lastId + 1
 	}
 
 	return posts, err
@@ -227,6 +232,66 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread i
 		"repo":   "Post",
 		"method": "GetFromThreadTree",
 	})
+
+	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
+		Select("id, parent, author, message, is_edited, forum, created").
+		From("posts").
+		Where("thread = ?", thread)
+
+	if since > 0 {
+		if desc {
+			queryBuilder = queryBuilder.Where("path < (SELECT path FROM posts WHERE id = ?)", since)
+		} else {
+			queryBuilder = queryBuilder.Where("path > (SELECT path FROM posts WHERE id = ?)", since)
+		}
+	}
+
+	if desc {
+		queryBuilder = queryBuilder.OrderBy("path DESC")
+	} else {
+		queryBuilder = queryBuilder.OrderBy("path ASC, id ASC")
+	}
+
+	if limit > 0 {
+		queryBuilder = queryBuilder.Limit(limit)
+	}
+
+	query, args, err := queryBuilder.ToSql()
+	if err != nil {
+		log.Error(err.Error())
+		return nil, err
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+
+	posts := make([]domain.Post, 0, rows.CommandTag().RowsAffected())
+	post := domain.Post{
+		Thread: thread,
+	}
+
+	for rows.Next() {
+		err := rows.Scan(
+			&post.Id,
+			&post.Parent,
+			&post.Author,
+			&post.Message,
+			&post.IsEdited,
+			&post.Forum,
+			&post.Created,
+		)
+		if err != nil {
+			log.Error(err.Error())
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+
+	return posts, nil
 }
 
 func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error) {
@@ -234,4 +299,107 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 		"repo":   "Post",
 		"method": "GetFromThreadParentTree",
 	})
+
+	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
+		Select("id, parent, author, message, is_edited, forum, created").
+		From("posts")
+
+	if since > 0 {
+		if desc {
+			queryBuilder = queryBuilder.
+				Where(
+					`path[1] IN (
+							SELECT id
+							FROM posts
+							WHERE thread = ? AND parent = 0 AND path[1] < (
+								SELECT path[1]
+								FROM posts
+								WHERE id = ?)
+							ORDER BY id DESC LIMIT ?)`,
+					thread,
+					since,
+					limit,
+				).
+				OrderBy(`path[1] DESC, path ASC, id ASC`)
+		} else {
+			queryBuilder = queryBuilder.
+				Where(
+					`path[1] IN (
+							SELECT id
+							FROM posts
+							WHERE thread = ? AND parent = 0 AND path[1] > (
+								SELECT path[1]
+								FROM posts
+								WHERE id = ?)
+							ORDER BY id ASC LIMIT ?)`,
+					thread,
+					since,
+					limit,
+				).
+				OrderBy(`path ASC, id ASC`)
+		}
+	} else {
+		if desc {
+			queryBuilder = queryBuilder.
+				Where(
+					`path[1] IN (
+							SELECT id
+							FROM posts
+							WHERE thread = ? AND parent = 0
+							ORDER BY id DESC LIMIT ?)`,
+					thread,
+					limit,
+				).
+				OrderBy(`path[1] DESC, path ASC, id ASC`)
+		} else {
+			queryBuilder = queryBuilder.
+				Where(
+					`path[1] IN (
+							SELECT id
+							FROM posts
+							WHERE thread = ? AND parent = 0
+							ORDER BY id ASC LIMIT ?)`,
+					thread,
+					limit,
+				).
+				OrderBy(`path ASC, id ASC`)
+		}
+	}
+
+	query, args, err := queryBuilder.ToSql()
+	if err != nil {
+		log.Error(err.Error())
+		return nil, err
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+
+	posts := make([]domain.Post, 0, rows.CommandTag().RowsAffected())
+	post := domain.Post{
+		Thread: thread,
+	}
+
+	for rows.Next() {
+		err := rows.Scan(
+			&post.Id,
+			&post.Parent,
+			&post.Author,
+			&post.Message,
+			&post.IsEdited,
+			&post.Forum,
+			&post.Created,
+		)
+		if err != nil {
+			log.Error(err.Error())
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+
+	return posts, nil
 }
