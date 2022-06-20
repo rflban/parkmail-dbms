@@ -1,4 +1,4 @@
-package threads
+package usecase
 
 import (
 	"context"

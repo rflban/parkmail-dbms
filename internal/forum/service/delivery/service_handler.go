@@ -3,18 +3,22 @@ package delivery
 import (
 	"context"
 	"encoding/json"
-	"github.com/rflban/parkmail-dbms/internal/forum/service"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
-type ServiceHandler struct {
-	serviceUseCase service.ServiceUseCase
+type ServiceUseCase interface {
+	Status(ctx context.Context) (models.Status, error)
+	Clear(ctx context.Context) error
 }
 
-func New(serviceUseCase service.ServiceUseCase) *ServiceHandler {
+type ServiceHandler struct {
+	serviceUseCase ServiceUseCase
+}
+
+func New(serviceUseCase ServiceUseCase) *ServiceHandler {
 	return &ServiceHandler{
 		serviceUseCase: serviceUseCase,
 	}

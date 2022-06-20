@@ -1,4 +1,4 @@
-package posts
+package usecase
 
 import (
 	"context"

@@ -2,15 +2,20 @@ package usecase
 
 import (
 	"context"
-	"github.com/rflban/parkmail-dbms/internal/forum/service"
+	"github.com/rflban/parkmail-dbms/internal/forum/service/domain"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 )
 
-type ServiceUseCaseImpl struct {
-	serviceRepo service.ServiceRepository
+type ServiceRepository interface {
+	Status(ctx context.Context) (domain.Status, error)
+	Clear(ctx context.Context) error
 }
 
-func New(serviceRepo service.ServiceRepository) *ServiceUseCaseImpl {
+type ServiceUseCaseImpl struct {
+	serviceRepo ServiceRepository
+}
+
+func New(serviceRepo ServiceRepository) *ServiceUseCaseImpl {
 	return &ServiceUseCaseImpl{
 		serviceRepo: serviceRepo,
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/sirupsen/logrus"
+	"sync"
 )
 
 const (
@@ -21,13 +22,28 @@ const (
 					RETURNING parent, author, message, is_edited, forum, thread, created;`
 )
 
+func getLastId(db *pgxpool.Pool) int64 {
+	var id int64;
+
+	err := db.QueryRow(context.Background(), "SELECT MAX(id) FROM posts;").Scan(&id)
+	if err != nil {
+		id = 0
+	}
+
+	return id
+}
+
 type PostRepositoryPostgres struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	lastId int64
+	mutex  sync.Mutex
 }
 
 func New(db *pgxpool.Pool) *PostRepositoryPostgres {
 	return &PostRepositoryPostgres{
-		db: db,
+		db:     db,
+		mutex:  sync.Mutex{},
+		lastId: getLastId(db),
 	}
 }
 
@@ -37,25 +53,23 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		"method": "Create",
 	})
 
+	r.mutex.Lock()
+	lastId := r.lastId
+	r.lastId = lastId + int64(len(posts))
+	r.mutex.Unlock()
+
+	for i := range posts {
+		posts[i].Id = int64(i) + lastId + 1
+	}
+
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
 	}
 
-	var lastId int64
-	err = r.db.QueryRow(ctx, queryLastId).Scan(&lastId)
-	if err != nil {
-		log.Error(err.Error())
-
-		if err := tx.Rollback(ctx); err != nil {
-			log.Error(err.Error())
-		}
-
-		return nil, err
-	}
-
 	copied, err := r.db.CopyFrom(ctx, pgx.Identifier{"posts"}, []string{
+		"id",
 		"parent",
 		"author",
 		"message",
@@ -64,6 +78,7 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		"created",
 	}, pgx.CopyFromSlice(len(posts), func(i int) ([]interface{}, error) {
 		return []interface{}{
+			posts[i].Id,
 			posts[i].Parent,
 			posts[i].Author,
 			posts[i].Message,
@@ -93,10 +108,6 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		}
 
 		return nil, err
-	}
-
-	for i := range posts {
-		posts[i].Id = int64(i) + lastId + 1
 	}
 
 	return posts, err
