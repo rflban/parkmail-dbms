@@ -2,11 +2,14 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	forumsDomain "github.com/rflban/parkmail-dbms/internal/forum/forums/domain"
 	"github.com/rflban/parkmail-dbms/internal/forum/posts/domain"
 	threadsDomain "github.com/rflban/parkmail-dbms/internal/forum/threads/domain"
 	usersDomain "github.com/rflban/parkmail-dbms/internal/forum/users/domain"
+	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
+	"github.com/sirupsen/logrus"
 )
 
 type PostRepository interface {
@@ -23,7 +26,7 @@ type UserRepository interface {
 }
 
 type ThreadRepository interface {
-	GetBySlug(ctx context.Context, slug string) (threadsDomain.Thread, error)
+	GetById(ctx context.Context, id int64) (threadsDomain.Thread, error)
 }
 
 type ForumRepository interface {
@@ -72,16 +75,120 @@ func (u *PostUseCaseImpl) Create(ctx context.Context, posts models.Posts) (model
 }
 
 func (u *PostUseCaseImpl) Patch(ctx context.Context, id int64, message *string) (models.Post, error) {
+	edited, err := u.postRepo.Patch(ctx, id, message)
+	return edited.ToModel(), err
 }
 
 func (u *PostUseCaseImpl) GetById(ctx context.Context, id int64) (models.Post, error) {
+	obtained, err := u.postRepo.GetById(ctx, id)
+	return obtained.ToModel(), err
 }
 
-func (u *PostUseCaseImpl) GetDetails(ctx context.Context, id int64, related string) (models.PostFull, error) {
+func (u *PostUseCaseImpl) GetDetails(ctx context.Context, id int64, related []string) (models.PostFull, error) {
+	log := ctx.Value(constants.UseCaseLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"usecase": "Post",
+		"method":  "GetDetails",
+	})
+
+	postFull := models.PostFull{}
+	post, err := u.postRepo.GetById(ctx, id)
+	postModel := post.ToModel()
+	postFull.Post = &postModel
+
+	var (
+		userObtained   = false
+		threadObtained = false
+		forumObtained  = false
+	)
+
+	if err != nil {
+		return postFull, err
+	}
+
+	for _, entity := range related {
+		switch entity {
+		case "user":
+			if userObtained {
+				break
+			}
+
+			user, err := u.userRepo.GetByNickname(ctx, post.Author)
+			if err != nil {
+				return postFull, err
+			}
+
+			userModel := user.ToModel()
+			postFull.Author = &userModel
+
+			userObtained = true
+		case "thread":
+			if threadObtained {
+				break
+			}
+
+			thread, err := u.threadRepo.GetById(ctx, post.Thread)
+			if err != nil {
+				return postFull, err
+			}
+
+			threadModel := thread.ToModel()
+			postFull.Thread = &threadModel
+
+			threadObtained = true
+		case "forum":
+			if forumObtained {
+				break
+			}
+
+			forum, err := u.forumRepo.GetBySlug(ctx, post.Forum)
+			if err != nil {
+				return postFull, err
+			}
+
+			forumModel := forum.ToModel()
+			postFull.Forum = &forumModel
+
+			forumObtained = true
+		default:
+			log.Errorf("unexpected related entity: %s", entity)
+			return postFull, fmt.Errorf("unexpected related entity: %s", entity)
+		}
+	}
+
+	return postFull, nil
 }
 
 func (u *PostUseCaseImpl) GetFromThread(ctx context.Context, thread int64, since int64, limit uint64, desc bool, sort string) (models.Posts, error) {
-	switch sort {
+	log := ctx.Value(constants.UseCaseLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"usecase": "Post",
+		"method":  "GetFromThread",
+	})
 
+	var (
+		posts []domain.Post
+		err   error
+	)
+
+	switch sort {
+	case "flat":
+		posts, err = u.postRepo.GetFromThreadFlat(ctx, thread, since, limit, desc)
+	case "tree":
+		posts, err = u.postRepo.GetFromThreadTree(ctx, thread, since, limit, desc)
+	case "parent_tree":
+		posts, err = u.postRepo.GetFromThreadParentTree(ctx, thread, since, limit, desc)
+	default:
+		log.Errorf("unexpected sort type: %s", sort)
+		return nil, fmt.Errorf("unexpected sort type: %s", sort)
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	obtained := make(models.Posts, 0, len(posts))
+	for _, post := range posts {
+		obtained = append(obtained, post.ToModel())
+	}
+
+	return obtained, nil
 }
