@@ -3,7 +3,6 @@ package delivery
 import (
 	"context"
 	"encoding/json"
-	"github.com/rflban/parkmail-dbms/internal/forum/users"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
@@ -20,10 +19,10 @@ type UserUseCase interface {
 }
 
 type UserHandler struct {
-	userUseCase users.UserUseCase
+	userUseCase UserUseCase
 }
 
-func New(userUseCase users.UserUseCase) *UserHandler {
+func New(userUseCase UserUseCase) *UserHandler {
 	return &UserHandler{
 		userUseCase: userUseCase,
 	}
@@ -36,7 +35,7 @@ func (h *UserHandler) Create(rctx *fasthttp.RequestCtx) {
 
 	nickname, ok := rctx.UserValue("nickname").(string)
 	if !ok {
-		log.Errorf("Can't parse nickname: %v", nickname)
+		log.Errorf("Can't parse nickname: %v", rctx.UserValue("nickname"))
 		body, _ := json.Marshal(models.Error{
 			Message: "invalid nickname",
 		})
@@ -101,6 +100,7 @@ func (h *UserHandler) Create(rctx *fasthttp.RequestCtx) {
 func (h *UserHandler) GetProfileByNickname(rctx *fasthttp.RequestCtx) {
 	ctx := rctx.UserValue("ctx").(context.Context)
 	log := ctx.Value(constants.DeliveryLogKey).(*logrus.Entry)
+	rctx.SetContentType("application/json")
 
 	nickname, ok := rctx.UserValue("nickname").(string)
 	if !ok {
@@ -149,13 +149,13 @@ func (h *UserHandler) GetProfileByNickname(rctx *fasthttp.RequestCtx) {
 	}
 
 	rctx.SetStatusCode(fasthttp.StatusOK)
-	rctx.SetContentType("application/json")
 	rctx.SetBody(body)
 }
 
 func (h *UserHandler) EditProfileByNickname(rctx *fasthttp.RequestCtx) {
 	ctx := rctx.UserValue("ctx").(context.Context)
 	log := ctx.Value(constants.DeliveryLogKey).(*logrus.Entry)
+	rctx.SetContentType("application/json")
 
 	nickname, ok := rctx.UserValue("nickname").(string)
 	if !ok {
@@ -227,6 +227,5 @@ func (h *UserHandler) EditProfileByNickname(rctx *fasthttp.RequestCtx) {
 	}
 
 	rctx.SetStatusCode(fasthttp.StatusOK)
-	rctx.SetContentType("application/json")
 	rctx.SetBody(body)
 }
