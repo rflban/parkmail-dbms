@@ -318,9 +318,12 @@ func (h *ForumHandler) GetThreads(rctx *fasthttp.RequestCtx) {
 	limitRaw := rctx.QueryArgs().Peek("limit")
 	descRaw := rctx.QueryArgs().Peek("desc")
 
-	since := string(sinceRaw)
-	limit, _ := strconv.ParseUint(string(limitRaw), 10, 64)
 	desc := string(descRaw) == "true"
+	since := string(sinceRaw)
+	limit, err := strconv.ParseUint(string(limitRaw), 10, 64)
+	if err != nil {
+		limit = 0
+	}
 
 	obtained, err := h.forumUseCase.GetThreadsBySlug(ctx, slug, since, limit, desc)
 	if err != nil {

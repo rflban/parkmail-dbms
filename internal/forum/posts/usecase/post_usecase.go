@@ -10,15 +10,16 @@ import (
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 	"github.com/sirupsen/logrus"
+	"strconv"
 )
 
 type PostRepository interface {
 	Create(ctx context.Context, posts []domain.Post) ([]domain.Post, error)
 	Patch(ctx context.Context, id int64, message *string) (domain.Post, error)
 	GetById(ctx context.Context, id int64) (domain.Post, error)
-	GetFromThreadFlat(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error)
-	GetFromThreadTree(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error)
-	GetFromThreadParentTree(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error)
+	GetFromThreadFlat(ctx context.Context, thread string, since int64, limit uint64, desc bool) ([]domain.Post, error)
+	GetFromThreadTree(ctx context.Context, thread string, since int64, limit uint64, desc bool) ([]domain.Post, error)
+	GetFromThreadParentTree(ctx context.Context, thread string, since int64, limit uint64, desc bool) ([]domain.Post, error)
 }
 
 type UserRepository interface {
@@ -27,6 +28,7 @@ type UserRepository interface {
 
 type ThreadRepository interface {
 	GetById(ctx context.Context, id int64) (threadsDomain.Thread, error)
+	GetBySlug(ctx context.Context, slug string) (threadsDomain.Thread, error)
 }
 
 type ForumRepository interface {
@@ -54,9 +56,21 @@ func New(
 	}
 }
 
-func (u *PostUseCaseImpl) Create(ctx context.Context, posts models.Posts) (models.Posts, error) {
+func (u *PostUseCaseImpl) Create(ctx context.Context, threadSlugOrId string, posts models.Posts) (models.Posts, error) {
+	var thread threadsDomain.Thread
+	threadId, err := strconv.ParseInt(threadSlugOrId, 10, 64)
+
+	if err != err {
+		thread, err = u.threadRepo.GetById(ctx, threadId)
+	} else {
+		thread, err = u.threadRepo.GetBySlug(ctx, threadSlugOrId)
+	}
+
+	threadId32 := int32(threadId)
 	toCreate := make([]domain.Post, 0, len(posts))
 	for _, post := range posts {
+		post.Thread = &threadId32
+		post.Forum = &thread.Forum
 		toCreate = append(toCreate, domain.FromModel(post))
 	}
 
@@ -158,7 +172,7 @@ func (u *PostUseCaseImpl) GetDetails(ctx context.Context, id int64, related []st
 	return postFull, nil
 }
 
-func (u *PostUseCaseImpl) GetFromThread(ctx context.Context, thread int64, since int64, limit uint64, desc bool, sort string) (models.Posts, error) {
+func (u *PostUseCaseImpl) GetFromThread(ctx context.Context, thread string, since int64, limit uint64, desc bool, sort string) (models.Posts, error) {
 	log := ctx.Value(constants.UseCaseLogKey).(*logrus.Entry).WithFields(logrus.Fields{
 		"usecase": "Post",
 		"method":  "GetFromThread",

@@ -10,6 +10,7 @@ import (
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
 	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/sirupsen/logrus"
+	"strconv"
 	"sync"
 )
 
@@ -171,16 +172,24 @@ func (r *PostRepositoryPostgres) GetById(ctx context.Context, id int64) (domain.
 	return post, err
 }
 
-func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error) {
+func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread string, since int64, limit uint64, desc bool) ([]domain.Post, error) {
 	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
 		"repo":   "Post",
 		"method": "GetFromThreadFlat",
 	})
 
+	_, err := strconv.ParseInt(thread, 10, 64)
+	threadIsNum := err != nil
+
 	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
-		Select("id, parent, author, message, is_edited, forum, created").
-		From("posts").
-		Where("thread = ?", thread)
+		Select("id, parent, author, message, is_edited, forum, thread, created").
+		From("posts")
+
+	if threadIsNum {
+		queryBuilder = queryBuilder.Where("thread = ?", thread)
+	} else {
+		queryBuilder = queryBuilder.Where("thread = (SELECT id FROM threads WHERE slug = ?)", thread)
+	}
 
 	if since > 0 {
 		if desc {
@@ -214,9 +223,7 @@ func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread i
 	defer rows.Close()
 
 	posts := make([]domain.Post, 0, rows.CommandTag().RowsAffected())
-	post := domain.Post{
-		Thread: thread,
-	}
+	post := domain.Post{}
 
 	for rows.Next() {
 		err := rows.Scan(
@@ -226,6 +233,7 @@ func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread i
 			&post.Message,
 			&post.IsEdited,
 			&post.Forum,
+			&post.Thread,
 			&post.Created,
 		)
 		if err != nil {
@@ -238,16 +246,24 @@ func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread i
 	return posts, nil
 }
 
-func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error) {
+func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread string, since int64, limit uint64, desc bool) ([]domain.Post, error) {
 	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
 		"repo":   "Post",
 		"method": "GetFromThreadTree",
 	})
 
+	_, err := strconv.ParseInt(thread, 10, 64)
+	threadIsNum := err != nil
+
 	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
-		Select("id, parent, author, message, is_edited, forum, created").
-		From("posts").
-		Where("thread = ?", thread)
+		Select("id, parent, author, message, is_edited, forum, thread, created").
+		From("posts")
+
+	if threadIsNum {
+		queryBuilder = queryBuilder.Where("thread = ?", thread)
+	} else {
+		queryBuilder = queryBuilder.Where("thread = (SELECT id FROM threads WHERE slug = ?)", thread)
+	}
 
 	if since > 0 {
 		if desc {
@@ -281,9 +297,7 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread i
 	defer rows.Close()
 
 	posts := make([]domain.Post, 0, rows.CommandTag().RowsAffected())
-	post := domain.Post{
-		Thread: thread,
-	}
+	post := domain.Post{}
 
 	for rows.Next() {
 		err := rows.Scan(
@@ -293,6 +307,7 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread i
 			&post.Message,
 			&post.IsEdited,
 			&post.Forum,
+			&post.Thread,
 			&post.Created,
 		)
 		if err != nil {
@@ -305,28 +320,38 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread i
 	return posts, nil
 }
 
-func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, thread int64, since int64, limit uint64, desc bool) ([]domain.Post, error) {
+func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, thread string, since int64, limit uint64, desc bool) ([]domain.Post, error) {
 	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
 		"repo":   "Post",
 		"method": "GetFromThreadParentTree",
 	})
 
 	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
-		Select("id, parent, author, message, is_edited, forum, created").
+		Select("id, parent, author, message, is_edited, forum, thread, created").
 		From("posts")
+
+	_, err := strconv.ParseInt(thread, 10, 64)
+	threadIsNum := err != nil
+
+	var threadSqlVal string
+	if threadIsNum {
+		threadSqlVal = "?"
+	} else {
+		threadSqlVal = `(SELECT id FROM threads WHERE slug = ?)`
+	}
 
 	if since > 0 {
 		if desc {
 			queryBuilder = queryBuilder.
 				Where(
-					`path[1] IN (
+					fmt.Sprintf(`path[1] IN (
 							SELECT id
 							FROM posts
-							WHERE thread = ? AND parent = 0 AND path[1] < (
+							WHERE thread = %s AND parent = 0 AND path[1] < (
 								SELECT path[1]
 								FROM posts
 								WHERE id = ?)
-							ORDER BY id DESC LIMIT ?)`,
+							ORDER BY id DESC LIMIT ?)`, threadSqlVal),
 					thread,
 					since,
 					limit,
@@ -335,14 +360,14 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 		} else {
 			queryBuilder = queryBuilder.
 				Where(
-					`path[1] IN (
+					fmt.Sprintf(`path[1] IN (
 							SELECT id
 							FROM posts
-							WHERE thread = ? AND parent = 0 AND path[1] > (
+							WHERE thread = %s AND parent = 0 AND path[1] > (
 								SELECT path[1]
 								FROM posts
 								WHERE id = ?)
-							ORDER BY id ASC LIMIT ?)`,
+							ORDER BY id ASC LIMIT ?)`, threadSqlVal),
 					thread,
 					since,
 					limit,
@@ -353,11 +378,11 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 		if desc {
 			queryBuilder = queryBuilder.
 				Where(
-					`path[1] IN (
+					fmt.Sprintf(`path[1] IN (
 							SELECT id
 							FROM posts
-							WHERE thread = ? AND parent = 0
-							ORDER BY id DESC LIMIT ?)`,
+							WHERE thread = %s AND parent = 0
+							ORDER BY id DESC LIMIT ?)`, threadSqlVal),
 					thread,
 					limit,
 				).
@@ -365,11 +390,11 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 		} else {
 			queryBuilder = queryBuilder.
 				Where(
-					`path[1] IN (
+					fmt.Sprintf(`path[1] IN (
 							SELECT id
 							FROM posts
-							WHERE thread = ? AND parent = 0
-							ORDER BY id ASC LIMIT ?)`,
+							WHERE thread = %s AND parent = 0
+							ORDER BY id ASC LIMIT ?)`, threadSqlVal),
 					thread,
 					limit,
 				).
@@ -391,9 +416,7 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 	defer rows.Close()
 
 	posts := make([]domain.Post, 0, rows.CommandTag().RowsAffected())
-	post := domain.Post{
-		Thread: thread,
-	}
+	post := domain.Post{}
 
 	for rows.Next() {
 		err := rows.Scan(
@@ -403,6 +426,7 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 			&post.Message,
 			&post.IsEdited,
 			&post.Forum,
+			&post.Thread,
 			&post.Created,
 		)
 		if err != nil {

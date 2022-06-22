@@ -11,12 +11,24 @@ import (
 )
 
 const (
-	queryCreate   = `INSERT INTO votes (nickname, thread, voice) VALUES ($1, $2, $3);`
-	queryGetVoice = `SELECT voice FROM votes WHERE nickname = $1 AND thread = $2;`
-	queryPatch    = `UPDATE votes
-						SET voice = COALESCE(NULLIF(TRIM($3), ''), voice)
-						WHERE nickname = $1 AND thread = $2
-						RETURNING voice;`
+	queryGetVoice      = `SELECT voice FROM votes WHERE nickname = $1 AND thread = $2;`
+	queryCreate        = `INSERT INTO votes (nickname, thread, voice) VALUES ($1, $2, $3);`
+	querySetByThreadId = `
+							INSERT INTO votes (nickname, thread, voice) VALUES ($1, $2, $3)
+					 		ON DUPLICATE KEY
+								UPDATE voice = $3;`
+	querySetByThreadSlug = `
+							INSERT INTO votes (nickname, thread, voice) 
+								SELECT $1, id, $3
+								FROM threads
+								WHERE slug = $2
+							ON DUPLICATE KEY
+								UPDATE voice = $3;`
+	queryPatch = `
+					UPDATE votes
+					SET voice = COALESCE(NULLIF(TRIM($3), ''), voice)
+					WHERE nickname = $1 AND thread = $2
+					RETURNING voice;`
 )
 
 type VoteRepositoryPostgres struct {
@@ -27,6 +39,34 @@ func New(db *pgxpool.Pool) *VoteRepositoryPostgres {
 	return &VoteRepositoryPostgres{
 		db: db,
 	}
+}
+
+func (r *VoteRepositoryPostgres) Set(ctx context.Context, vote domain.Vote) (domain.Vote, error) {
+	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"repo":   "Vote",
+		"method": "Set",
+	})
+
+	_, err := r.db.Exec(ctx, querySetByThreadId, vote.Nickname, vote.Thread, vote.Voice)
+	if err != nil {
+		log.Error(err.Error())
+	}
+
+	return vote, err
+}
+
+func (r *VoteRepositoryPostgres) SetByThreadSlug(ctx context.Context, slug string, vote domain.Vote) (domain.Vote, error) {
+	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"repo":   "Vote",
+		"method": "SetByThreadSlug",
+	})
+
+	_, err := r.db.Exec(ctx, querySetByThreadSlug, vote.Nickname, slug, vote.Voice)
+	if err != nil {
+		log.Error(err.Error())
+	}
+
+	return vote, err
 }
 
 func (r *VoteRepositoryPostgres) Create(ctx context.Context, vote domain.Vote) (domain.Vote, error) {

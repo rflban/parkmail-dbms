@@ -23,6 +23,13 @@ const (
 						message = COALESCE(NULLIF(TRIM($3), ''), message)
 						WHERE id = $1
 						RETURNING title, author, forum, message, votes, slug, created;`
+	queryUpdateBySlug = `
+							UPDATE threads
+							SET
+								 title = COALESCE(NULLIF(TRIM($2), ''), title),
+								 message = COALESCE(NULLIF(TRIM($3), ''), message)
+							WHERE slug = $1
+							RETURNING id, title, author, forum, message, votes, created;`
 )
 
 type ThreadRepositoryPostgres struct {
@@ -139,6 +146,35 @@ func (r *ThreadRepositoryPostgres) Patch(ctx context.Context, id int64, partialT
 		&thread.Message,
 		&thread.Votes,
 		&thread.Slug,
+		&thread.Created,
+	)
+
+	if err != nil {
+		log.Error(err.Error())
+		if err.Error() == pgx.ErrNoRows.Error() {
+			return thread, forumErrors.NewEntityNotExistsError("threads")
+		}
+	}
+
+	return thread, err
+}
+
+func (r *ThreadRepositoryPostgres) PatchBySlug(ctx context.Context, slug string, partialThread domain.PartialThread) (domain.Thread, error) {
+	log := ctx.Value(constants.RepoLogKey).(*logrus.Entry).WithFields(logrus.Fields{
+		"repo":   "Thread",
+		"method": "Patch",
+	})
+
+	thread := domain.Thread{
+		Slug: slug,
+	}
+	err := r.db.QueryRow(ctx, queryUpdateById, slug, partialThread.Title, partialThread.Message).Scan(
+		&thread.Id,
+		&thread.Title,
+		&thread.Author,
+		&thread.Forum,
+		&thread.Message,
+		&thread.Votes,
 		&thread.Created,
 	)
 
