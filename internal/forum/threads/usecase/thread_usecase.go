@@ -57,7 +57,7 @@ func (u *ThreadUseCaseImpl) Patch(ctx context.Context, id int64, threadUpdate mo
 	return edited.ToModel(), err
 }
 
-func (u *ThreadUseCaseImpl) PatchBySlugOrid(ctx context.Context, slugOrId string, threadUpdate models.ThreadUpdate) (models.Thread, error) {
+func (u *ThreadUseCaseImpl) PatchBySlugOrId(ctx context.Context, slugOrId string, threadUpdate models.ThreadUpdate) (models.Thread, error) {
 	id, err := strconv.ParseInt(slugOrId, 10, 64)
 
 	if err != nil {
