@@ -58,3 +58,96 @@ CREATE UNLOGGED TABLE IF NOT EXISTS votes (
 
     CONSTRAINT unique_vote UNIQUE(nickname, thread)
 );
+
+CREATE OR REPLACE FUNCTION threads__set_votes() RETURNS TRIGGER AS $$
+    BEGIN
+        UPDATE threads
+           SET votes = votes + NEW.voice
+         WHERE id = NEW.thread;
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER votes__on_insert__threads__set_votes
+    AFTER INSERT ON votes
+    FOR EACH ROW EXECUTE PROCEDURE threads__set_votes();
+
+CREATE OR REPLACE FUNCTION threads__update_votes() RETURNS TRIGGER AS $$
+    BEGIN
+        UPDATE threads
+           SET votes = votes + NEW.voice - OLD.voice
+         WHERE id = NEW.thread;
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER votes__on_update__threads__update_votes
+    AFTER UPDATE ON votes
+    FOR EACH ROW EXECUTE PROCEDURE threads__update_votes();
+
+CREATE OR REPLACE FUNCTION posts__set_path() RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.path = (
+            SELECT path
+              FROM posts
+             WHERE id = NEW.parent
+        ) || NEW.id;
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE  plpgsql;
+CREATE TRIGGER posts__on_insert__threads__update_votes
+    AFTER INSERT ON posts
+    FOR EACH ROW EXECUTE PROCEDURE posts__set_path();
+
+CREATE OR REPLACE FUNCTION forums__count_threads() RETURNS TRIGGER AS $$
+    BEGIN
+        UPDATE forums
+           SET threads = forums.threads + 1
+         WHERE slug = NEW.forum;
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER threads__on_insert__forums__count_threads
+    AFTER INSERT ON threads
+    FOR EACH ROW EXECUTE PROCEDURE forums__count_threads();
+
+CREATE OR REPLACE FUNCTION forums__count_posts() RETURNS TRIGGER AS $$
+    BEGIN
+        UPDATE forums
+           SET posts = forums.posts + 1
+         WHERE slug = NEW.forum;
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER posts__on_insert__forums__count_posts
+    AFTER INSERT ON posts
+    FOR EACH ROW EXECUTE PROCEDURE forums__count_posts();
+
+CREATE OR REPLACE FUNCTION forums_users__update() RETURNS TRIGGER AS $$
+    DECLARE
+        nickname    CITEXT;
+        fullname    TEXT;
+        about       TEXT;
+        email       CITEXT;
+    BEGIN
+        SELECT nickname, fullname, about, email
+          FROM forums_users
+         WHERE nickname = NEW.author
+          INTO nickname, fullname, about, email;
+
+        INSERT INTO forums_users (nickname, fullname, about, email, forum)
+             VALUES (nickname, fullname, about, email, NEW.forum)
+        ON CONFLICT DO NOTHING;
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER posts__on_insert__forums_users__update
+    AFTER INSERT ON posts
+    FOR EACH ROW EXECUTE PROCEDURE forums_users__update();
+CREATE TRIGGER threads__on_insert__forums_users__update
+    AFTER INSERT ON threads
+    FOR EACH ROW EXECUTE PROCEDURE forums_users__update();
