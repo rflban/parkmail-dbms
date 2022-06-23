@@ -1,10 +1,10 @@
 [server]
-port = 8080
+port = 5000
 
 [database]
-name = "postgres"
-username = "postgres"
-password = "postgres"
+name = "forum"
+username = "forum"
+password = "forum"
 host = "localhost"
 port = 5432
 max_conns = 100

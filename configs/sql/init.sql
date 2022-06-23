@@ -21,7 +21,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS forums_users (
     nickname    CITEXT COLLATE "C"  NOT NULL    REFERENCES users(nickname),
     fullname    TEXT                NOT NULL,
     about       TEXT,
-    email       CITEXT              NOT NULL    UNIQUE,
+    email       CITEXT              NOT NULL,
     forum       CITEXT              NOT NULL    REFERENCES forums(slug),
 
     CONSTRAINT unique_forum_user UNIQUE(nickname, forum)
@@ -176,13 +176,16 @@ CREATE INDEX IF NOT EXISTS thread__slug__hash ON threads using hash (slug);
 CREATE INDEX IF NOT EXISTS thread__forum__hash ON threads using hash (forum);
 CREATE INDEX IF NOT EXISTS thread__forum__created ON threads (forum, created);
 
+CREATE INDEX IF NOT EXISTS post__batch_id_hash ON posts using hash (batch_id);
+CREATE INDEX IF NOT EXISTS post__id_hash ON posts using hash (id);
+CREATE INDEX IF NOT EXISTS post__batch_thread_hash ON posts using hash (thread);
 CREATE INDEX IF NOT EXISTS post__thread__path ON posts (thread, path);
 CREATE INDEX IF NOT EXISTS post__path ON posts ((path[1]), path);
-CREATE INDEX IF NOT EXISTS post__batch_id ON posts (batch_id);
+CREATE INDEX IF NOT EXISTS post__forum__author ON Posts (forum, author);
+CREATE INDEX IF NOT EXISTS post__thread__id ON Posts (thread, id);
 
-CREATE INDEX IF NOT EXISTS forums_users__forum__hash ON forums_users (forum, nickname);
+CREATE INDEX IF NOT EXISTS forums_users__forum ON forums_users (forum, nickname);
 
-CREATE UNIQUE INDEX IF NOT EXISTS votes__less ON votes (nickname, thread);
-CREATE UNIQUE INDEX IF NOT EXISTS votes__more ON votes (nickname, thread, voice);
+CREATE UNIQUE INDEX IF NOT EXISTS votes__all ON votes (nickname, thread, voice);
 
 VACUUM ANALYZE;
