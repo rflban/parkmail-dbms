@@ -34,19 +34,19 @@ CREATE UNLOGGED TABLE IF NOT EXISTS threads (
     forum       CITEXT                      NOT NULL        REFERENCES forums(slug),
     message     TEXT                        NOT NULL,
     votes       BIGINT                      DEFAULT 0,
-    slug        CITEXT                      NOT NULL,
+    slug        CITEXT,
     created     TIMESTAMP WITH TIME ZONE    DEFAULT now()
 );
 
 CREATE UNLOGGED TABLE IF NOT EXISTS posts (
     id          BIGSERIAL                   NOT NULL                    PRIMARY KEY,
-    parent      BIGSERIAL                                               REFERENCES posts(id),
+    parent      BIGSERIAL,
     author      CITEXT COLLATE "C"          NOT NULL                    REFERENCES users(nickname),
     message     TEXT                        NOT NULL,
     is_edited   BOOLEAN                     DEFAULT FALSE,
     forum       CITEXT                      NOT NULL                    REFERENCES forums(slug),
     thread      BIGINT                      NOT NULL                    REFERENCES threads(id),
-    created     TIMESTAMP WITH TIME ZONE    DEFAULT now(),
+    created     TIMESTAMP WITH TIME ZONE    DEFAULT NOW(),
     path        BIGINT[]                    DEFAULT ARRAY[]::BIGINT[]
 );
 
@@ -128,18 +128,18 @@ CREATE TRIGGER posts__on_insert__forums__count_posts
 
 CREATE OR REPLACE FUNCTION forums_users__update() RETURNS TRIGGER AS $$
     DECLARE
-        nickname    CITEXT;
-        fullname    TEXT;
-        about       TEXT;
-        email       CITEXT;
+        v_nickname    CITEXT;
+        v_fullname    TEXT;
+        v_about       TEXT;
+        v_email       CITEXT;
     BEGIN
-        SELECT nickname, fullname, about, email
-          FROM forums_users
-         WHERE nickname = NEW.author
-          INTO nickname, fullname, about, email;
+        SELECT u.nickname, u.fullname, u.about, u.email
+          FROM users u
+         WHERE u.nickname = NEW.author
+          INTO v_nickname, v_fullname, v_about, v_email;
 
         INSERT INTO forums_users (nickname, fullname, about, email, forum)
-             VALUES (nickname, fullname, about, email, NEW.forum)
+             VALUES (v_nickname, v_fullname, v_about, v_email, NEW.forum)
         ON CONFLICT DO NOTHING;
 
         RETURN NEW;

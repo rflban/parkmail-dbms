@@ -173,7 +173,7 @@ func easyjson5077f799DecodeGithubComRflbanParkmailDbmsPkgForumModels1(in *jlexer
 		switch key {
 		case "title":
 			out.Title = string(in.String())
-		case "username":
+		case "user":
 			out.User = string(in.String())
 		case "slug":
 			out.Slug = string(in.String())
@@ -217,7 +217,7 @@ func easyjson5077f799EncodeGithubComRflbanParkmailDbmsPkgForumModels1(out *jwrit
 		out.String(string(in.Title))
 	}
 	{
-		const prefix string = ",\"username\":"
+		const prefix string = ",\"user\":"
 		out.RawString(prefix)
 		out.String(string(in.User))
 	}

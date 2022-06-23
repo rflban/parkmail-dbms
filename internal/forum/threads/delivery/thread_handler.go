@@ -23,7 +23,7 @@ type PostUseCase interface {
 }
 
 type VoteUseCase interface {
-	Set(ctx context.Context, thread string, vote models.Vote) (models.Vote, error)
+	Set(ctx context.Context, thread string, vote models.Vote) (models.Thread, error)
 }
 
 type ThreadHandler struct {

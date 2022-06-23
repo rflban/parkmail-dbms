@@ -5,6 +5,7 @@ import (
 	"github.com/rflban/parkmail-dbms/internal/forum/forums/domain"
 	threadsDomain "github.com/rflban/parkmail-dbms/internal/forum/threads/domain"
 	usersDomain "github.com/rflban/parkmail-dbms/internal/forum/users/domain"
+	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 )
 
@@ -27,7 +28,22 @@ func New(forumRepo ForumRepository) *ForumUseCaseImpl {
 
 func (u *ForumUseCaseImpl) Create(ctx context.Context, forum models.Forum) (models.Forum, error) {
 	created, err := u.forumRepo.Create(ctx, domain.FromModel(forum, nil))
-	return created.ToModel(), err
+
+	if err == nil {
+		return created.ToModel(), err
+	}
+
+	if _, isConflict := err.(forumErrors.UniqueError); !isConflict {
+		return models.Forum{}, err
+	}
+	conflict := err
+
+	existing, err := u.forumRepo.GetBySlug(ctx, forum.Slug)
+	if err != nil {
+		return models.Forum{}, err
+	}
+
+	return existing.ToModel(), conflict
 }
 
 func (u *ForumUseCaseImpl) GetBySlug(ctx context.Context, slug string) (models.Forum, error) {
@@ -36,6 +52,11 @@ func (u *ForumUseCaseImpl) GetBySlug(ctx context.Context, slug string) (models.F
 }
 
 func (u *ForumUseCaseImpl) GetUsersBySlug(ctx context.Context, slug string, since string, limit uint64, desc bool) (models.Users, error) {
+	_, err := u.forumRepo.GetBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+
 	obtained, err := u.forumRepo.GetUsersBySlug(ctx, slug, since, limit, desc)
 
 	if err != nil {
@@ -51,6 +72,11 @@ func (u *ForumUseCaseImpl) GetUsersBySlug(ctx context.Context, slug string, sinc
 }
 
 func (u *ForumUseCaseImpl) GetThreadsBySlug(ctx context.Context, slug string, since string, limit uint64, desc bool) (models.Threads, error) {
+	_, err := u.forumRepo.GetBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+
 	obtained, err := u.forumRepo.GetThreadsBySlug(ctx, slug, since, limit, desc)
 
 	if err != nil {

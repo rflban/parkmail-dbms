@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"github.com/rflban/parkmail-dbms/internal/forum/users/domain"
+	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/rflban/parkmail-dbms/pkg/forum/models"
 )
 
@@ -24,9 +25,34 @@ func New(userRepo UserRepository) *UserUseCaseImpl {
 	}
 }
 
-func (u *UserUseCaseImpl) Create(ctx context.Context, user models.User) (models.User, error) {
+func (u *UserUseCaseImpl) Create(ctx context.Context, user models.User) (models.Users, error) {
 	created, err := u.userRepo.Create(ctx, domain.GetUserEntity(user))
-	return created.ToModel(), err
+
+	if err == nil {
+		return models.Users{created.ToModel()}, nil
+	}
+
+	if _, isConflict := err.(forumErrors.UniqueError); !isConflict {
+		return nil, err
+	}
+	conflict := err
+
+	var nickname string
+	if user.Nickname != nil {
+		nickname = *user.Nickname
+	}
+
+	existing, err := u.userRepo.GetByEmailOrNickname(ctx, user.Email, nickname)
+	if err != nil {
+		return nil, err
+	}
+
+	users := make(models.Users, 0, len(existing))
+	for _, user := range existing {
+		users = append(users, user.ToModel())
+	}
+
+	return users, conflict
 }
 
 func (u *UserUseCaseImpl) Patch(ctx context.Context, nickname string, partialUser models.UserUpdate) (models.User, error) {

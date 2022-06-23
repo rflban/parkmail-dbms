@@ -14,9 +14,9 @@ import (
 
 const (
 	queryCreate               = `INSERT INTO users (nickname, fullname, about, email) VALUES ($1, $2, $3, $4) RETURNING id;`
-	queryPatch                = `UPDATE users SET fullname = COALESCE(NULLIF(TRIM($2), ''), fullname), about = COALESCE(NULLIF(TRIM($3), ''), about), email = COALESCE(NULLIF(TRIM($4), ''), email) WHERE nickname = $1 RETURNING fullname, about, email;`
-	queryGetByEmail           = `SELECT id, nickname, fullname, about FROM users WHERE email = $1;`
-	queryGetByNickname        = `SELECT id, fullname, about, email FROM users WHERE nickname = $1;`
+	queryPatch                = `UPDATE users SET fullname = COALESCE(NULLIF(TRIM($2), ''), fullname), about = COALESCE(NULLIF(TRIM($3), ''), about), email = COALESCE(NULLIF(TRIM($4), ''), email) WHERE nickname = $1 RETURNING nickname, fullname, about, email;`
+	queryGetByEmail           = `SELECT id, nickname, fullname, about, email FROM users WHERE email = $1;`
+	queryGetByNickname        = `SELECT id, nickname, fullname, about, email FROM users WHERE nickname = $1;`
 	queryGetByEmailOrNickname = `SELECT id, nickname, fullname, about, email FROM users WHERE email = $1 OR nickname = $2;`
 )
 
@@ -59,9 +59,10 @@ func (r *UserRepositoryPostgres) Patch(ctx context.Context, nickname string, par
 		"method": "Patch",
 	})
 
-	user := domain.User{Nickname: nickname}
+	var user domain.User
 
 	err := r.db.QueryRow(ctx, queryPatch, nickname, partialUser.Fullname, partialUser.About, partialUser.Email).Scan(
+		&user.Nickname,
 		&user.Fullname,
 		&user.About,
 		&user.Email,
@@ -91,13 +92,14 @@ func (r *UserRepositoryPostgres) GetByEmail(ctx context.Context, email string) (
 		"method": "GetByEmail",
 	})
 
-	user := domain.User{Email: email}
+	var user domain.User
 
 	err := r.db.QueryRow(ctx, queryGetByEmail, email).Scan(
 		&user.Id,
 		&user.Nickname,
 		&user.Fullname,
 		&user.About,
+		&user.Email,
 	)
 
 	if err != nil {
@@ -117,10 +119,11 @@ func (r *UserRepositoryPostgres) GetByNickname(ctx context.Context, nickname str
 		"method": "GetByNickname",
 	})
 
-	user := domain.User{Nickname: nickname}
+	var user domain.User
 
 	err := r.db.QueryRow(ctx, queryGetByNickname, nickname).Scan(
 		&user.Id,
+		&user.Nickname,
 		&user.Fullname,
 		&user.About,
 		&user.Email,

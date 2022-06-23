@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	queryCreate    = `INSERT INTO forums (title, "user", slug, posts, threads) VALUES ($1, $2, $3, $4, $5);`
-	queryGetBySlug = `SELECT id, title, "user", posts, threads FROM forums WHERE slug = $1;`
+	queryCreate    = `INSERT INTO forums (title, "user", slug, posts, threads) VALUES ($1, $2, $3, $4, $5) RETURNING id, title, "user", slug, posts, threads;`
+	queryGetBySlug = `SELECT id, title, "user", slug, posts, threads FROM forums WHERE slug = $1;`
 )
 
 type ForumRepositoryPostgres struct {
@@ -36,23 +36,45 @@ func (r *ForumRepositoryPostgres) Create(ctx context.Context, forum domain.Forum
 		"method": "Create",
 	})
 
-	_, err := r.db.Exec(ctx, queryCreate, forum.Title, forum.User, forum.Slug, forum.Posts, forum.Threads)
+	var user string
+	r.db.QueryRow(ctx, "SELECT nickname FROM users WHERE nickname = $1", forum.User).Scan(&user)
+
+	var obtained domain.Forum
+
+	err := r.db.QueryRow(ctx, queryCreate,
+		forum.Title,
+		forum.User,
+		forum.Slug,
+		forum.Posts,
+		forum.Threads,
+	).Scan(
+		&obtained.Id,
+		&obtained.Title,
+		&obtained.User,
+		&obtained.Slug,
+		&obtained.Posts,
+		&obtained.Threads,
+	)
+	obtained.User = user
 
 	if err != nil {
 		log.Error(err.Error())
 
-		// TODO: user not found
-
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
-			return forum, forumErrors.NewUniqueError(
-				pgErr.TableName,
-				pgErr.ColumnName,
-			)
+		if errors.As(err, &pgErr) {
+			switch pgErr.SQLState() {
+			case "23505":
+				return obtained, forumErrors.NewUniqueError(
+					pgErr.TableName,
+					pgErr.ColumnName,
+				)
+			case "23503":
+				return obtained, forumErrors.NewEntityNotExistsError("users")
+			}
 		}
 	}
 
-	return forum, err
+	return obtained, err
 }
 
 func (r *ForumRepositoryPostgres) GetBySlug(ctx context.Context, slug string) (domain.Forum, error) {
@@ -61,13 +83,13 @@ func (r *ForumRepositoryPostgres) GetBySlug(ctx context.Context, slug string) (d
 		"method": "GetBySlug",
 	})
 
-	forum := domain.Forum{
-		Slug: slug,
-	}
+	var forum domain.Forum
+
 	err := r.db.QueryRow(ctx, queryGetBySlug, slug).Scan(
 		&forum.Id,
 		&forum.Title,
 		&forum.User,
+		&forum.Slug,
 		&forum.Posts,
 		&forum.Threads,
 	)
@@ -79,6 +101,10 @@ func (r *ForumRepositoryPostgres) GetBySlug(ctx context.Context, slug string) (d
 			return forum, forumErrors.NewEntityNotExistsError("forums")
 		}
 	}
+
+	var user string
+	r.db.QueryRow(ctx, "SELECT nickname FROM users WHERE nickname = $1", forum.User).Scan(&user)
+	forum.User = user
 
 	return forum, err
 }
@@ -153,7 +179,7 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 	})
 
 	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
-		Select("id, title, author, message, votes, slug, created").
+		Select("id, title, author, forum, message, votes, slug, created").
 		From("threads").
 		Where("forum = ?", slug)
 
@@ -166,13 +192,13 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 	}
 
 	if desc {
-		queryBuilder.OrderBy("created DESC")
+		queryBuilder = queryBuilder.OrderBy("created DESC")
 	} else {
-		queryBuilder.OrderBy("created ASC")
+		queryBuilder = queryBuilder.OrderBy("created ASC")
 	}
 
 	if limit > 0 {
-		queryBuilder.Limit(limit)
+		queryBuilder = queryBuilder.Limit(limit)
 	}
 
 	query, args, err := queryBuilder.ToSql()
@@ -180,6 +206,7 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 		log.Error(err.Error())
 		return nil, err
 	}
+	log.Info(query)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
@@ -189,15 +216,14 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 	defer rows.Close()
 
 	threads := make([]threadsDomain.Thread, 0, rows.CommandTag().RowsAffected())
-	thread := threadsDomain.Thread{
-		Forum: slug,
-	}
+	thread := threadsDomain.Thread{}
 
 	for rows.Next() {
 		err = rows.Scan(
 			&thread.Id,
 			&thread.Title,
 			&thread.Author,
+			&thread.Forum,
 			&thread.Message,
 			&thread.Votes,
 			&thread.Slug,

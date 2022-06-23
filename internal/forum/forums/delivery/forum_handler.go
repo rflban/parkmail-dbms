@@ -65,9 +65,13 @@ func (h *ForumHandler) Create(rctx *fasthttp.RequestCtx) {
 		}
 
 		if _, ok := err.(forumErrors.UniqueError); ok {
-			body, _ := json.Marshal(models.Error{
-				Message: "conflict with another forum's data",
-			})
+			body, err := json.Marshal(obtained)
+
+			if err != nil {
+				body, _ = json.Marshal(models.Error{
+					Message: "internal server error",
+				})
+			}
 
 			rctx.SetStatusCode(fasthttp.StatusConflict)
 			rctx.SetBody(body)
@@ -199,9 +203,13 @@ func (h *ForumHandler) CreateThread(rctx *fasthttp.RequestCtx) {
 		}
 
 		if _, ok := err.(forumErrors.UniqueError); ok {
-			body, _ := json.Marshal(models.Error{
-				Message: "conflict with another thread's data",
-			})
+			body, err := json.Marshal(obtained)
+
+			if err != nil {
+				body, _ = json.Marshal(models.Error{
+					Message: "internal server error",
+				})
+			}
 
 			rctx.SetStatusCode(fasthttp.StatusConflict)
 			rctx.SetBody(body)

@@ -60,13 +60,17 @@ func (u *PostUseCaseImpl) Create(ctx context.Context, threadSlugOrId string, pos
 	var thread threadsDomain.Thread
 	threadId, err := strconv.ParseInt(threadSlugOrId, 10, 64)
 
-	if err != err {
-		thread, err = u.threadRepo.GetById(ctx, threadId)
-	} else {
+	if err != nil {
 		thread, err = u.threadRepo.GetBySlug(ctx, threadSlugOrId)
+	} else {
+		thread, err = u.threadRepo.GetById(ctx, threadId)
 	}
 
-	threadId32 := int32(threadId)
+	if err != nil {
+		return nil, err
+	}
+
+	threadId32 := int32(thread.Id)
 	toCreate := make([]domain.Post, 0, len(posts))
 	for _, post := range posts {
 		post.Thread = &threadId32

@@ -24,11 +24,11 @@ const (
 )
 
 func getLastId(db *pgxpool.Pool) int64 {
-	var id int64;
+	var id int64
 
 	err := db.QueryRow(context.Background(), "SELECT MAX(id) FROM posts;").Scan(&id)
 	if err != nil {
-		id = 0
+		id = 1
 	}
 
 	return id

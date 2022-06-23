@@ -1,6 +1,9 @@
 package domain
 
-import "github.com/rflban/parkmail-dbms/pkg/forum/models"
+import (
+	"github.com/rflban/parkmail-dbms/pkg/forum/models"
+	"time"
+)
 
 type Post struct {
 	Id       int64
@@ -10,7 +13,7 @@ type Post struct {
 	IsEdited bool
 	Forum    string
 	Thread   int64
-	Created  string
+	Created  time.Time
 }
 
 func (post Post) ToModel() models.Post {
@@ -35,7 +38,7 @@ func FromModel(post models.Post) Post {
 		isEditedVal bool
 		forumVal    string
 		threadVal   int64
-		createdVal  string
+		createdVal  time.Time
 	)
 
 	if post.Id != nil {

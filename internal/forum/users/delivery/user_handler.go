@@ -11,7 +11,7 @@ import (
 )
 
 type UserUseCase interface {
-	Create(ctx context.Context, user models.User) (models.User, error)
+	Create(ctx context.Context, user models.User) (models.Users, error)
 	Patch(ctx context.Context, nickname string, partialUser models.UserUpdate) (models.User, error)
 	GetByEmail(ctx context.Context, email string) (models.User, error)
 	GetByNickname(ctx context.Context, nickname string) (models.User, error)
@@ -63,9 +63,13 @@ func (h *UserHandler) Create(rctx *fasthttp.RequestCtx) {
 	created, err := h.userUseCase.Create(ctx, toCreate)
 	if err != nil {
 		if _, ok := err.(forumErrors.UniqueError); ok {
-			body, _ := json.Marshal(models.Error{
-				Message: "user already exists",
-			})
+			body, err := json.Marshal(created)
+
+			if err != nil {
+				body, _ = json.Marshal(models.Error{
+					Message: "internal server error",
+				})
+			}
 
 			rctx.SetStatusCode(fasthttp.StatusConflict)
 			rctx.SetBody(body)
@@ -80,7 +84,7 @@ func (h *UserHandler) Create(rctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	body, err := json.Marshal(created)
+	body, err := json.Marshal(created[0])
 	if err != nil {
 		log.Error(err.Error())
 

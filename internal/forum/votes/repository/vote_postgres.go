@@ -15,15 +15,15 @@ const (
 	queryCreate        = `INSERT INTO votes (nickname, thread, voice) VALUES ($1, $2, $3);`
 	querySetByThreadId = `
 							INSERT INTO votes (nickname, thread, voice) VALUES ($1, $2, $3)
-					 		ON DUPLICATE KEY
-								UPDATE voice = $3;`
+					 		ON CONFLICT (nickname, thread) DO UPDATE
+								SET voice = $3;`
 	querySetByThreadSlug = `
 							INSERT INTO votes (nickname, thread, voice) 
 								SELECT $1, id, $3
 								FROM threads
 								WHERE slug = $2
-							ON DUPLICATE KEY
-								UPDATE voice = $3;`
+					 		ON CONFLICT (nickname, thread) DO UPDATE
+								SET voice = $3;`
 	queryPatch = `
 					UPDATE votes
 					SET voice = COALESCE(NULLIF(TRIM($3), ''), voice)

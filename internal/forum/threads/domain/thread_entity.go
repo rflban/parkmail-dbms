@@ -1,6 +1,9 @@
 package domain
 
-import "github.com/rflban/parkmail-dbms/pkg/forum/models"
+import (
+	"github.com/rflban/parkmail-dbms/pkg/forum/models"
+	"time"
+)
 
 type Thread struct {
 	Id      int64
@@ -10,7 +13,7 @@ type Thread struct {
 	Message string
 	Votes   int32
 	Slug    string
-	Created string
+	Created time.Time
 }
 
 func (thread Thread) ToModel() models.Thread {
@@ -34,7 +37,7 @@ func FromModel(thread models.Thread, id *int64) Thread {
 		votesVal   int32
 		forumVal   string
 		slugVal    string
-		createdVal string
+		createdVal time.Time
 	)
 
 	if id != nil {

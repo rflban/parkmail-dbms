@@ -7,6 +7,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+	time "time"
 )
 
 // suppress unused package warning
@@ -96,9 +97,11 @@ func easyjson6aa74c22DecodeGithubComRflbanParkmailDbmsPkgForumModels(in *jlexer.
 				out.Created = nil
 			} else {
 				if out.Created == nil {
-					out.Created = new(string)
+					out.Created = new(time.Time)
 				}
-				*out.Created = string(in.String())
+				if data := in.Raw(); in.Ok() {
+					in.AddError((*out.Created).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -163,7 +166,7 @@ func easyjson6aa74c22EncodeGithubComRflbanParkmailDbmsPkgForumModels(out *jwrite
 	if in.Created != nil {
 		const prefix string = ",\"created\":"
 		out.RawString(prefix)
-		out.String(string(*in.Created))
+		out.Raw((*in.Created).MarshalJSON())
 	}
 	out.RawByte('}')
 }

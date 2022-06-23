@@ -38,9 +38,9 @@ func SetupHandlers(ctx context.Context, pool *pgxpool.Pool, router *FasthttpRout
 	var (
 		serviceUseCase = ServiceUseCase.New(serviceRepo)
 		userUseCase    = UserUseCase.New(userRepo)
-		voteUseCase    = VoteUseCase.New(voteRepo)
+		voteUseCase    = VoteUseCase.New(voteRepo, threadRepo)
 		forumUseCase   = ForumUseCase.New(forumRepo)
-		threadUseCase  = ThreadUseCase.New(threadRepo)
+		threadUseCase  = ThreadUseCase.New(threadRepo, forumRepo, userRepo)
 		postUseCase    = PostUseCase.New(postRepo, userRepo, threadRepo, forumRepo)
 	)
 
