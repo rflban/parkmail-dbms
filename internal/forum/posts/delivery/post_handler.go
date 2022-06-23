@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"strconv"
+	"strings"
 )
 
 type PostUseCase interface {
@@ -59,8 +60,9 @@ func (h *PostHandler) GetDetails(rctx *fasthttp.RequestCtx) {
 	relatedRaw := rctx.QueryArgs().PeekMulti("related")
 	related := make([]string, 0, len(relatedRaw))
 
-	for _, entity := range relatedRaw {
-		related = append(related, string(entity))
+	for _, entityRaw := range relatedRaw {
+		entity := string(entityRaw)
+		related = append(related, strings.Split(entity, ",")...)
 	}
 
 	obtained, err := h.postUseCase.GetDetails(ctx, id, related)

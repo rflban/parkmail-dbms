@@ -167,6 +167,8 @@ func (u *PostUseCaseImpl) GetDetails(ctx context.Context, id int64, related []st
 			postFull.Forum = &forumModel
 
 			forumObtained = true
+		case "":
+			// skips...
 		default:
 			log.Errorf("unexpected related entity: %s", entity)
 			return postFull, fmt.Errorf("unexpected related entity: %s", entity)
@@ -177,26 +179,32 @@ func (u *PostUseCaseImpl) GetDetails(ctx context.Context, id int64, related []st
 }
 
 func (u *PostUseCaseImpl) GetFromThread(ctx context.Context, thread string, since int64, limit uint64, desc bool, sort string) (models.Posts, error) {
-	log := ctx.Value(constants.UseCaseLogKey).(*logrus.Entry).WithFields(logrus.Fields{
-		"usecase": "Post",
-		"method":  "GetFromThread",
-	})
-
 	var (
 		posts []domain.Post
 		err   error
 	)
 
+	threadId, err := strconv.ParseInt(thread, 10, 64)
+
+	if err != nil {
+		_, err = u.threadRepo.GetBySlug(ctx, thread)
+	} else {
+		_, err = u.threadRepo.GetById(ctx, threadId)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	switch sort {
-	case "flat":
-		posts, err = u.postRepo.GetFromThreadFlat(ctx, thread, since, limit, desc)
 	case "tree":
 		posts, err = u.postRepo.GetFromThreadTree(ctx, thread, since, limit, desc)
 	case "parent_tree":
 		posts, err = u.postRepo.GetFromThreadParentTree(ctx, thread, since, limit, desc)
+	case "flat":
+		fallthrough
 	default:
-		log.Errorf("unexpected sort type: %s", sort)
-		return nil, fmt.Errorf("unexpected sort type: %s", sort)
+		posts, err = u.postRepo.GetFromThreadFlat(ctx, thread, since, limit, desc)
 	}
 
 	if err != nil {

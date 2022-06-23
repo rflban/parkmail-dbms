@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rflban/parkmail-dbms/internal/forum/posts/domain"
@@ -11,40 +14,26 @@ import (
 	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/sirupsen/logrus"
 	"strconv"
-	"sync"
+	"time"
 )
 
 const (
-	queryLastId  = `SELECT MAX(id) FROM posts;`
-	queryGetById = `SELECT parent, author, message, is_edited, forum, thread, created FROM posts WHERE id = $1;`
-	queryUpdate  = `UPDATE posts
-					SET message = COALESCE(NULLIF(TRIM($2), ''), message), is_edited = true
+	queryGetAfterBatch = `SELECT id, created, batch_idx FROM posts WHERE batch_id = $1 ORDER BY id;`
+	queryLastId        = `SELECT MAX(id) FROM posts;`
+	queryGetById       = `SELECT parent, author, message, is_edited, forum, thread, created FROM posts WHERE id = $1;`
+	queryUpdate        = `UPDATE posts
+					SET message = COALESCE(NULLIF(TRIM($2), ''), message), is_edited = ($3 AND message != $2)
 					WHERE id = $1
 					RETURNING parent, author, message, is_edited, forum, thread, created;`
 )
 
-func getLastId(db *pgxpool.Pool) int64 {
-	var id int64
-
-	err := db.QueryRow(context.Background(), "SELECT MAX(id) FROM posts;").Scan(&id)
-	if err != nil {
-		id = 1
-	}
-
-	return id
-}
-
 type PostRepositoryPostgres struct {
-	db     *pgxpool.Pool
-	lastId int64
-	mutex  sync.Mutex
+	db *pgxpool.Pool
 }
 
 func New(db *pgxpool.Pool) *PostRepositoryPostgres {
 	return &PostRepositoryPostgres{
-		db:     db,
-		mutex:  sync.Mutex{},
-		lastId: getLastId(db),
+		db: db,
 	}
 }
 
@@ -54,14 +43,7 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		"method": "Create",
 	})
 
-	r.mutex.Lock()
-	lastId := r.lastId
-	r.lastId = lastId + int64(len(posts))
-	r.mutex.Unlock()
-
-	for i := range posts {
-		posts[i].Id = int64(i) + lastId + 1
-	}
+	batchID := uuid.New()
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -69,24 +51,34 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		return nil, err
 	}
 
+	now := time.Now()
+
 	copied, err := r.db.CopyFrom(ctx, pgx.Identifier{"posts"}, []string{
-		"id",
 		"parent",
 		"author",
 		"message",
 		"forum",
 		"thread",
 		"created",
+		"batch_id",
+		"batch_idx",
 	}, pgx.CopyFromSlice(len(posts), func(i int) ([]interface{}, error) {
-		return []interface{}{
-			posts[i].Id,
+		if posts[i].Created.Equal(time.Time{}) {
+			posts[i].Created = now
+		}
+
+		post := []interface{}{
 			posts[i].Parent,
 			posts[i].Author,
 			posts[i].Message,
 			posts[i].Forum,
 			posts[i].Thread,
 			posts[i].Created,
-		}, nil
+			batchID.String(),
+			i,
+		}
+
+		return post, nil
 	}))
 
 	if err != nil {
@@ -96,13 +88,25 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 			log.Error(err.Error())
 		}
 
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.SQLState() {
+			case "23514":
+				return nil, forumErrors.NewConflictError(
+					pgErr.Message,
+				)
+			case "23503":
+				return nil, forumErrors.NewEntityNotExistsError("users or forum")
+			}
+		}
+
 		return nil, err
 	}
 
 	if int(copied) != len(posts) {
 		log.
 			WithField("copied", fmt.Sprintf("%d/%d", copied, len(posts))).
-			Errorf("Failed bulck insert")
+			Errorf("Failed bulk insert")
 
 		if err := tx.Rollback(ctx); err != nil {
 			log.Error(err.Error())
@@ -111,7 +115,45 @@ func (r *PostRepositoryPostgres) Create(ctx context.Context, posts []domain.Post
 		return nil, err
 	}
 
-	return posts, err
+	rows, err := r.db.Query(ctx, queryGetAfterBatch, batchID.String())
+	if err != nil {
+		log.Error(err.Error())
+		if err := tx.Rollback(ctx); err != nil {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	var batch_idx int
+	obtained := make([]domain.Post, 0, rows.CommandTag().RowsAffected())
+	post := domain.Post{}
+
+	for rows.Next() {
+		err := rows.Scan(
+			&post.Id,
+			&post.Created,
+			&batch_idx,
+		)
+		if err != nil {
+			log.Error(err.Error())
+			if err := tx.Rollback(ctx); err != nil {
+				return nil, err
+			}
+			return nil, err
+		}
+		post.Parent = posts[batch_idx].Parent
+		post.Author = posts[batch_idx].Author
+		post.Message = posts[batch_idx].Message
+		post.IsEdited = posts[batch_idx].IsEdited
+		post.Forum = posts[batch_idx].Forum
+		post.Thread = posts[batch_idx].Thread
+
+		obtained = append(obtained, post)
+	}
+
+	err = tx.Commit(ctx)
+
+	return obtained, err
 }
 
 func (r *PostRepositoryPostgres) Patch(ctx context.Context, id int64, message *string) (domain.Post, error) {
@@ -123,7 +165,7 @@ func (r *PostRepositoryPostgres) Patch(ctx context.Context, id int64, message *s
 	post := domain.Post{
 		Id: id,
 	}
-	err := r.db.QueryRow(ctx, queryUpdate, id, message).Scan(
+	err := r.db.QueryRow(ctx, queryUpdate, id, message, message != nil).Scan(
 		&post.Parent,
 		&post.Author,
 		&post.Message,
@@ -179,7 +221,7 @@ func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread s
 	})
 
 	_, err := strconv.ParseInt(thread, 10, 64)
-	threadIsNum := err != nil
+	threadIsNum := err == nil
 
 	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Select("id, parent, author, message, is_edited, forum, thread, created").
@@ -215,6 +257,8 @@ func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread s
 		return nil, err
 	}
 
+	log.Info(query)
+	log.Info(args)
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		log.Error(err.Error())
@@ -253,7 +297,7 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread s
 	})
 
 	_, err := strconv.ParseInt(thread, 10, 64)
-	threadIsNum := err != nil
+	threadIsNum := err == nil
 
 	queryBuilder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Select("id, parent, author, message, is_edited, forum, thread, created").
@@ -289,6 +333,8 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread s
 		return nil, err
 	}
 
+	log.Info(query)
+	log.Info(args)
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		log.Error(err.Error())
@@ -331,7 +377,7 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 		From("posts")
 
 	_, err := strconv.ParseInt(thread, 10, 64)
-	threadIsNum := err != nil
+	threadIsNum := err == nil
 
 	var threadSqlVal string
 	if threadIsNum {

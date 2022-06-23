@@ -99,10 +99,10 @@ func (u *ThreadUseCaseImpl) PatchBySlugOrId(ctx context.Context, slugOrId string
 	id, err := strconv.ParseInt(slugOrId, 10, 64)
 
 	if err != nil {
-		edited, err := u.threadRepo.Patch(ctx, id, domain.FromModelUpdate(threadUpdate))
+		edited, err := u.threadRepo.PatchBySlug(ctx, slugOrId, domain.FromModelUpdate(threadUpdate))
 		return edited.ToModel(), err
 	} else {
-		edited, err := u.threadRepo.PatchBySlug(ctx, slugOrId, domain.FromModelUpdate(threadUpdate))
+		edited, err := u.threadRepo.Patch(ctx, id, domain.FromModelUpdate(threadUpdate))
 		return edited.ToModel(), err
 	}
 }

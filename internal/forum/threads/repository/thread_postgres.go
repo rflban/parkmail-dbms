@@ -26,14 +26,14 @@ const (
 						title = COALESCE(NULLIF(TRIM($2), ''), title),
 						message = COALESCE(NULLIF(TRIM($3), ''), message)
 						WHERE id = $1
-						RETURNING title, author, forum, message, votes, slug, created;`
+						RETURNING id, title, author, forum, message, votes, slug, created;`
 	queryUpdateBySlug = `
 							UPDATE threads
 							SET
 								 title = COALESCE(NULLIF(TRIM($2), ''), title),
 								 message = COALESCE(NULLIF(TRIM($3), ''), message)
 							WHERE slug = $1
-							RETURNING id, title, author, forum, message, votes, created;`
+							RETURNING id, title, author, forum, message, votes, slug, created;`
 )
 
 type ThreadRepositoryPostgres struct {
@@ -113,12 +113,6 @@ func (r *ThreadRepositoryPostgres) Create(ctx context.Context, thread domain.Thr
 			case "23503":
 				return obtained, forumErrors.NewEntityNotExistsError("users or forum")
 			}
-		}
-		if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
-			err = forumErrors.NewUniqueError(
-				pgErr.TableName,
-				pgErr.ColumnName,
-			)
 		}
 	}
 
@@ -203,10 +197,10 @@ func (r *ThreadRepositoryPostgres) Patch(ctx context.Context, id int64, partialT
 		"method": "Patch",
 	})
 
-	thread := domain.Thread{
-		Id: id,
-	}
+	var thread domain.Thread
+
 	err := r.db.QueryRow(ctx, queryUpdateById, id, partialThread.Title, partialThread.Message).Scan(
+		&thread.Id,
 		&thread.Title,
 		&thread.Author,
 		&thread.Forum,
@@ -232,16 +226,16 @@ func (r *ThreadRepositoryPostgres) PatchBySlug(ctx context.Context, slug string,
 		"method": "Patch",
 	})
 
-	thread := domain.Thread{
-		Slug: slug,
-	}
-	err := r.db.QueryRow(ctx, queryUpdateById, slug, partialThread.Title, partialThread.Message).Scan(
+	var thread domain.Thread
+
+	err := r.db.QueryRow(ctx, queryUpdateBySlug, slug, partialThread.Title, partialThread.Message).Scan(
 		&thread.Id,
 		&thread.Title,
 		&thread.Author,
 		&thread.Forum,
 		&thread.Message,
 		&thread.Votes,
+		&thread.Slug,
 		&thread.Created,
 	)
 

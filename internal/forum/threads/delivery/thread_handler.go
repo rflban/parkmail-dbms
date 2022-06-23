@@ -92,6 +92,16 @@ func (h *ThreadHandler) CreatePosts(rctx *fasthttp.RequestCtx) {
 			return
 		}
 
+		if _, ok := err.(forumErrors.ConflictError); ok {
+			body, _ := json.Marshal(models.Error{
+				Message: "Parent post was created in another thread",
+			})
+
+			rctx.SetStatusCode(fasthttp.StatusConflict)
+			rctx.SetBody(body)
+			return
+		}
+
 		body, _ := json.Marshal(models.Error{
 			Message: "internal server error",
 		})

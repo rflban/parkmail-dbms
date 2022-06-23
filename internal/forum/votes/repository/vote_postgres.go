@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"errors"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rflban/parkmail-dbms/internal/forum/votes/domain"
 	"github.com/rflban/parkmail-dbms/internal/pkg/forum/constants"
+	forumErrors "github.com/rflban/parkmail-dbms/internal/pkg/forum/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,6 +52,14 @@ func (r *VoteRepositoryPostgres) Set(ctx context.Context, vote domain.Vote) (dom
 	_, err := r.db.Exec(ctx, querySetByThreadId, vote.Nickname, vote.Thread, vote.Voice)
 	if err != nil {
 		log.Error(err.Error())
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.SQLState() {
+			case "23503":
+				return vote, forumErrors.NewEntityNotExistsError("votes")
+			}
+		}
 	}
 
 	return vote, err
@@ -64,6 +74,14 @@ func (r *VoteRepositoryPostgres) SetByThreadSlug(ctx context.Context, slug strin
 	_, err := r.db.Exec(ctx, querySetByThreadSlug, vote.Nickname, slug, vote.Voice)
 	if err != nil {
 		log.Error(err.Error())
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.SQLState() {
+			case "23503":
+				return vote, forumErrors.NewEntityNotExistsError("votes")
+			}
+		}
 	}
 
 	return vote, err

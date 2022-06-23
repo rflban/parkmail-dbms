@@ -156,7 +156,6 @@ func (r *ForumRepositoryPostgres) GetUsersBySlug(ctx context.Context, slug strin
 
 	for rows.Next() {
 		err = rows.Scan(
-			&user.Id,
 			&user.Nickname,
 			&user.Fullname,
 			&user.About,
