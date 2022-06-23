@@ -144,7 +144,7 @@ func (r *ForumRepositoryPostgres) GetUsersBySlug(ctx context.Context, slug strin
 		return nil, err
 	}
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query+";", args...)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -207,7 +207,7 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 	}
 	log.Info(query)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query+";", args...)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -217,6 +217,8 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 	threads := make([]threadsDomain.Thread, 0, rows.CommandTag().RowsAffected())
 	thread := threadsDomain.Thread{}
 
+	var fetchedSlug *string
+
 	for rows.Next() {
 		err = rows.Scan(
 			&thread.Id,
@@ -225,12 +227,17 @@ func (r *ForumRepositoryPostgres) GetThreadsBySlug(ctx context.Context, slug str
 			&thread.Forum,
 			&thread.Message,
 			&thread.Votes,
-			&thread.Slug,
+			&fetchedSlug,
 			&thread.Created,
 		)
 		if err != nil {
 			log.Error(err.Error())
 			return nil, err
+		}
+		if fetchedSlug != nil {
+			thread.Slug = *fetchedSlug
+		} else {
+			thread.Slug = ""
 		}
 		threads = append(threads, thread)
 	}

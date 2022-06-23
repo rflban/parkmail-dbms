@@ -259,7 +259,7 @@ func (r *PostRepositoryPostgres) GetFromThreadFlat(ctx context.Context, thread s
 
 	log.Info(query)
 	log.Info(args)
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query+";", args...)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -335,7 +335,7 @@ func (r *PostRepositoryPostgres) GetFromThreadTree(ctx context.Context, thread s
 
 	log.Info(query)
 	log.Info(args)
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query+";", args...)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -454,7 +454,7 @@ func (r *PostRepositoryPostgres) GetFromThreadParentTree(ctx context.Context, th
 		return nil, err
 	}
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, query+";", args...)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
