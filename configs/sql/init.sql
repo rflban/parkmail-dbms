@@ -186,6 +186,4 @@ CREATE INDEX IF NOT EXISTS post__thread__id ON Posts (thread, id);
 
 CREATE INDEX IF NOT EXISTS forums_users__forum ON forums_users (forum, nickname);
 
-CREATE UNIQUE INDEX IF NOT EXISTS votes__all ON votes (nickname, thread, voice);
-
 VACUUM ANALYZE;
